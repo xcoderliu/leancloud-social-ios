@@ -21,20 +21,20 @@ NSString * const AVOSCloudSNSErrorDomain = @"com.avoscloud.snslogin";
 
 @implementation AVOSCloudSNS
 
-+ (AFHTTPRequestOperationManager *)requestManager {
-    static AFHTTPRequestOperationManager *requestManager;
++ (AFHTTPSessionManager *)requestManager {
+    static AFHTTPSessionManager *requestManager;
     @synchronized (self) {
-        requestManager = [AFHTTPRequestOperationManager manager];
+        requestManager = [AFHTTPSessionManager manager];
         requestManager.responseSerializer = [AFHTTPResponseSerializer serializer];
     }
     return requestManager;
 }
 
-+ (AFHTTPRequestOperationManager *)jsonRequestManager {
-    static AFHTTPRequestOperationManager *jsonRequestManager;
++ (AFHTTPSessionManager *)jsonRequestManager {
+    static AFHTTPSessionManager *jsonRequestManager;
     @synchronized (self) {
         if (!jsonRequestManager) {
-            jsonRequestManager = [AFHTTPRequestOperationManager manager];
+            jsonRequestManager = [AFHTTPSessionManager manager];
             // 避免服务器不规范，没有返回 application/json
             jsonRequestManager.responseSerializer.acceptableContentTypes = [jsonRequestManager.responseSerializer.acceptableContentTypes setByAddingObject:@"text/plain"];
         }
@@ -82,7 +82,7 @@ NSString * const AVOSCloudSNSErrorDomain = @"com.avoscloud.snslogin";
             case AVOSCloudSNSSinaWeibo:
                 rightOne = [NSString stringWithFormat:@"sinaweibosso.%@", appkey];
                 break;
-             
+                
             case AVOSCloudSNSQQ:
                 rightOne = [NSString stringWithFormat:@"tencent%@", appkey];
                 break;
@@ -119,7 +119,7 @@ NSString * const AVOSCloudSNSErrorDomain = @"com.avoscloud.snslogin";
  */
 +(BOOL)sinaWeiboSSO{
     BOOL ssoLoggingIn=NO;
-  
+    
     NSDictionary *config=[[self ssoConfigs] objectForKey:@(AVOSCloudSNSSinaWeibo)];
     
     //无SSO配置直接返回
@@ -138,11 +138,11 @@ NSString * const AVOSCloudSNSErrorDomain = @"com.avoscloud.snslogin";
     }
     
     NSString *appAuthURL = [AVOSCloudSNSUtils serializeURL:appAuthBaseURL
-                                               params:@{
-                                                        @"client_id":config[@"appkey"],
-                                                        @"redirect_uri":red_uri,
-                                                        @"callback_uri":[callback_uri stringByAppendingString:@"://"],
-                                                        }];
+                                                    params:@{
+                                                             @"client_id":config[@"appkey"],
+                                                             @"redirect_uri":red_uri,
+                                                             @"callback_uri":[callback_uri stringByAppendingString:@"://"],
+                                                             }];
     ssoLoggingIn = [[UIApplication sharedApplication] openURL:[NSURL URLWithString:appAuthURL]];
     
     return ssoLoggingIn;
@@ -357,7 +357,7 @@ NSString * const AVOSCloudSNSErrorDomain = @"com.avoscloud.snslogin";
 +(BOOL)doesUserExpireOfPlatform:(AVOSCloudSNSType)type{
     //判断过期
     NSDate *expireDate=[[self userInfo:type] objectForKey:@"expires_at"];
-
+    
     if (!expireDate || [expireDate timeIntervalSinceNow]<120) {
         return YES;
     }
@@ -409,9 +409,9 @@ NSString * const AVOSCloudSNSErrorDomain = @"com.avoscloud.snslogin";
         {
             NSDictionary *config=[[self ssoConfigs] objectForKey:@(type)];
             params=@{@"format":@"json",
-                @"access_token":token,
-                @"oauth_consumer_key":config[@"appkey"],
-                @"openid":uid};
+                     @"access_token":token,
+                     @"oauth_consumer_key":config[@"appkey"],
+                     @"openid":uid};
             url=@"https://openmobile.qq.com/user/get_simple_userinfo";
         }
             break;
@@ -424,7 +424,7 @@ NSString * const AVOSCloudSNSErrorDomain = @"com.avoscloud.snslogin";
             NSAssert(NO, @"不支持的平台类型");
             break;
     }
-    [[self requestManager] GET:url parameters:params success:^(AFHTTPRequestOperation *operation, id responseObject) {
+    [[self requestManager] GET:url parameters:params progress:nil success:^(NSURLSessionDataTask * _Nonnull task, id  _Nullable responseObject) {
         NSDictionary *params= [NSJSONSerialization JSONObjectWithData:responseObject options:NSJSONReadingAllowFragments error:nil];
         NSString *error=params[@"error"];
         if (error) {
@@ -455,9 +455,8 @@ NSString * const AVOSCloudSNSErrorDomain = @"com.avoscloud.snslogin";
             [dict setObject:params forKey:@"raw-user"];
             
             [AVOSCloudSNS onSuccess:type withParams:dict];
-            
         }
-    } failure:^(AFHTTPRequestOperation *operation, NSError *error) {
+    } failure:^(NSURLSessionDataTask * _Nullable task, NSError * _Nonnull error) {
         [AVOSCloudSNS onFail:type withError:error];
     }];
 }
@@ -512,10 +511,7 @@ NSString * const AVOSCloudSNSErrorDomain = @"com.avoscloud.snslogin";
             NSDictionary *dict= [AVOSCloudSNS userInfo:AVOSCloudSNSSinaWeibo];
             if (dict) {
                 NSString *token=[dict objectForKey:@"access_token"];
-
-                [[self requestManager] GET:@"https://api.weibo.com/oauth2/revokeoauth2" parameters:@{@"access_token":token} success:^(AFHTTPRequestOperation *operation, id responseObject) {
-                } failure:^(AFHTTPRequestOperation *operation, NSError *error) {
-                }];
+                [[self requestManager] GET:@"https://api.weibo.com/oauth2/revokeoauth2" parameters:@{@"access_token":token} progress:nil success:nil failure:nil];
             }
         }
             break;
@@ -551,7 +547,7 @@ NSString * const AVOSCloudSNSErrorDomain = @"com.avoscloud.snslogin";
             [self onCancel:AVOSCloudSNSSinaWeibo];
         }
     }else if ([scheme hasPrefix:@"tencent"]) {
-
+        
         if ([[params objectForKey:@"generalpastboard"] isEqualToString:@"1"]) {
             NSString *pbname=[NSString stringWithFormat:@"com.tencent.%@",scheme];
             
@@ -614,15 +610,15 @@ NSString * const AVOSCloudSNSErrorDomain = @"com.avoscloud.snslogin";
     NSString *appId = config[@"appkey"];
     NSString *secret = config[@"appsec"];
     NSDictionary *params = @{@"appid":appId, @"secret": secret, @"code":code, @"grant_type":@"authorization_code"};
-    AFHTTPRequestOperationManager *manager = [self jsonRequestManager];
-    [manager GET:@"https://api.weixin.qq.com/sns/oauth2/access_token" parameters:params success:^(AFHTTPRequestOperation *operation, id responseObject) {
+    AFHTTPSessionManager *manager = [self jsonRequestManager];
+    [manager GET:@"https://api.weixin.qq.com/sns/oauth2/access_token" parameters:params progress:nil success:^(NSURLSessionDataTask * _Nonnull task, id  _Nullable responseObject) {
         if ([responseObject objectForKey:@"access_token"]) {
             block(responseObject, nil);
         } else {
             // weixin system error
             block(nil, [NSError errorWithDomain:AVOSCloudSNSErrorDomain code:AVOSCloudSNSErrorLoginFail userInfo:@{NSLocalizedDescriptionKey: [responseObject objectForKey:@"errmsg"]}]);
         }
-    } failure:^(AFHTTPRequestOperation *operation, NSError *error) {
+    } failure:^(NSURLSessionDataTask * _Nullable task, NSError * _Nonnull error) {
         block(nil, error);
     }];
 }
@@ -644,7 +640,7 @@ NSString * const AVOSCloudSNSErrorDomain = @"com.avoscloud.snslogin";
             default:
             case AVOSCloudSNSSinaWeibo:
                 NSParameterAssert(redirect_uri);
-            
+                
                 break;
             case AVOSCloudSNSWeiXin:
                 //FIXME:
@@ -725,34 +721,26 @@ NSString * const AVOSCloudSNSErrorDomain = @"com.avoscloud.snslogin";
         UINavigationController *nvc=[[UINavigationController alloc] initWithRootViewController:vc];
         
         [[self ssoConfigs] setObject:vc forKey:@"tmpvc"];
-
+        
         if ([rootC isKindOfClass:[UINavigationController class]]) {
             rootC = [(UINavigationController*)rootC visibleViewController];
         }
-
+        
         [rootC presentViewController:nvc animated:YES completion:nil];
     }
 }
 
 
 +(void)request:(NSURLRequest*)req withCallback:(AVSNSResultBlock)callback andProgress:(AVSNSProgressBlock)progressBlock{
-    
-    AFHTTPRequestOperation *opt = [[AFHTTPRequestOperation alloc] initWithRequest:req];
+    AFHTTPSessionManager *opt = [[AFHTTPSessionManager alloc] initWithBaseURL:req.URL];
     opt.responseSerializer = [AFJSONResponseSerializer serializer];
-    [opt setCompletionBlockWithSuccess:^(AFHTTPRequestOperation *operation, id responseObject) {
+    [opt POST:req.URL.absoluteString parameters:nil progress:^(NSProgress * _Nonnull uploadProgress) {
+        progressBlock(uploadProgress.completedUnitCount*1.0f/uploadProgress.totalUnitCount);
+    } success:^(NSURLSessionDataTask * _Nonnull task, id  _Nullable responseObject) {
         callback(responseObject,nil);
-    } failure:^(AFHTTPRequestOperation *operation, NSError *error) {
-        callback(nil,error);
+    } failure:^(NSURLSessionDataTask * _Nullable task, NSError * _Nonnull error) {
+        
     }];
-
-    if (progressBlock) {
-        [opt setUploadProgressBlock:^(NSUInteger bytesWritten, long long totalBytesWritten, long long totalBytesExpectedToWrite) {
-            progressBlock(totalBytesWritten*1.0f/totalBytesExpectedToWrite);
-        }];
-    }
-    
-    [opt setQueuePriority:NSOperationQueuePriorityHigh];
-    [[NSOperationQueue mainQueue] addOperation:opt];
 }
 
 

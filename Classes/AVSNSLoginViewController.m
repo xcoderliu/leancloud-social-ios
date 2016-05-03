@@ -106,20 +106,20 @@ static NSString * const AVOS_SNS_API_VERSION=@"1";
             [self.webView loadRequest:req];
         }
             break;
-           
+            
             
         case AVOSCloudSNSQQ:
         {
             NSDictionary *params=@{
-                                  @"client_id":self.appkey,
-                                  @"redirect_uri":self.redirect_uri,
-                                  @"display":@"mobile",
-                                  @"scope":@"get_simple_userinfo,list_album,upload_pic,do_like",
-                                  @"response_type":@"token",
-                                  @"which":@"Login",
-                                  @"ucheck":@1,
-                                  @"fall_to_wv":@1
-                                  };
+                                   @"client_id":self.appkey,
+                                   @"redirect_uri":self.redirect_uri,
+                                   @"display":@"mobile",
+                                   @"scope":@"get_simple_userinfo,list_album,upload_pic,do_like",
+                                   @"response_type":@"token",
+                                   @"which":@"Login",
+                                   @"ucheck":@1,
+                                   @"fall_to_wv":@1
+                                   };
             NSURLRequest *req = [[AFHTTPRequestSerializer serializer] requestWithMethod:@"GET" URLString:@"http://openmobile.qq.com/oauth2.0/m_show" parameters:params error:nil];
             
             [self.webView loadRequest:req];
@@ -140,17 +140,17 @@ static NSString * const AVOS_SNS_API_VERSION=@"1";
         case AVOSCloudSNSSinaWeibo:
         {
             param=@{
-                                  @"client_id":self.appkey,
-                                  @"client_secret":self.appsec,
-                                  @"redirect_uri":self.redirect_uri,
-                                  @"grant_type":@"authorization_code",
-                                  @"code":code
-                                  };
+                    @"client_id":self.appkey,
+                    @"client_secret":self.appsec,
+                    @"redirect_uri":self.redirect_uri,
+                    @"grant_type":@"authorization_code",
+                    @"code":code
+                    };
             
-             url=@"https://api.weibo.com/oauth2/access_token";
+            url=@"https://api.weibo.com/oauth2/access_token";
         }
             break;
-           
+            
         case AVOSCloudSNSQQ:
         {
             param=@{
@@ -167,7 +167,7 @@ static NSString * const AVOS_SNS_API_VERSION=@"1";
             return;
     }
     
-    [[AVOSCloudSNS requestManager] POST:url parameters:param success:^(AFHTTPRequestOperation *operation, id responseObject) {
+    [[AVOSCloudSNS requestManager] POST:url parameters:param progress:nil success:^(NSURLSessionDataTask * _Nonnull task, id  _Nullable responseObject) {
         NSDictionary *info=[NSJSONSerialization JSONObjectWithData:responseObject options:NSJSONReadingAllowFragments error:nil];
         
         NSString *token=info[@"access_token"];
@@ -184,9 +184,11 @@ static NSString * const AVOS_SNS_API_VERSION=@"1";
             //TODO: return unknow error
             [AVOSCloudSNS onFail:self.type withError:error];
         }
-    } failure:^(AFHTTPRequestOperation *operation, NSError *error) {
+        
+    } failure:^(NSURLSessionDataTask * _Nullable task, NSError * _Nonnull error) {
         
     }];
+    
 }
 
 -(BOOL)webView:(UIWebView *)webView shouldStartLoadWithRequest:(NSURLRequest *)request navigationType:(UIWebViewNavigationType)navigationType{
@@ -204,7 +206,7 @@ static NSString * const AVOS_SNS_API_VERSION=@"1";
         
         if(hasCode){
             //avos返回用户信息
-            [[AVOSCloudSNS requestManager] GET:url parameters:nil success:^(AFHTTPRequestOperation *operation, id responseObject) {
+            [[AVOSCloudSNS requestManager] GET:url parameters:nil progress:nil success:^(NSURLSessionDataTask * _Nonnull task, id  _Nullable responseObject) {
                 NSDictionary *info=[NSJSONSerialization JSONObjectWithData:responseObject options:NSJSONReadingAllowFragments error:nil];
                 info=info[@"user"];
                 if (info) {
@@ -214,9 +216,11 @@ static NSString * const AVOS_SNS_API_VERSION=@"1";
                     NSError *err=[NSError errorWithDomain:AVOSCloudSNSErrorDomain code:9999 userInfo:info];
                     [AVOSCloudSNS onFail:self.type withError:err];
                 }
-            } failure:^(AFHTTPRequestOperation *operation, NSError *error) {
+                
+            } failure:^(NSURLSessionDataTask * _Nullable task, NSError * _Nonnull error) {
                 [AVOSCloudSNS onFail:self.type withError:error];
             }];
+            
             return NO;
         }else if ([url rangeOfString:@"access_denied"].length>0) {
             //用户取消
@@ -252,17 +256,18 @@ static NSString * const AVOS_SNS_API_VERSION=@"1";
             [self getAccessToken:code];
             return NO;
         }else if (token && self.type==AVOSCloudSNSQQ){
-            [[AVOSCloudSNS requestManager] GET:[NSString stringWithFormat:@"https://graph.qq.com/oauth2.0/me?access_token=%@",token] parameters:nil success:^(AFHTTPRequestOperation *operation, id responseObject) {
+            [[AVOSCloudSNS requestManager] GET:[NSString stringWithFormat:@"https://graph.qq.com/oauth2.0/me?access_token=%@",token] parameters:nil progress:nil success:^(NSURLSessionDataTask * _Nonnull task, id  _Nullable responseObject) {
                 NSString *string=[[NSString alloc] initWithBytes:[responseObject bytes] length:[responseObject length] encoding:NSUTF8StringEncoding];
                 NSDictionary *ret= [AVOSCloudSNSUtils unserializeJSONP:string];
                 NSString *openid=ret[@"openid"];
                 [AVOSCloudSNS onSuccess:self.type withToken:token andExpires:param[@"expires_in"] andUid:openid];
-            } failure:^(AFHTTPRequestOperation *operation, NSError *error) {
+            } failure:^(NSURLSessionDataTask * _Nullable task, NSError * _Nonnull error) {
                 [AVOSCloudSNS onFail:AVOSCloudSNSQQ withError:error];
             }];
+            
         }
     }else{
-//        NSLog(@"Open :%@",url);
+        //        NSLog(@"Open :%@",url);
     }
     
     return YES;
