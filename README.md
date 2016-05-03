@@ -1,4 +1,4 @@
-# leancloud-social-ios
+# leancloud-social-ios Support AFNetworking3.0!
 
 [![Podspec][podspec-svg]][podspec-link]
 ![Platforms][platforms-svg]
